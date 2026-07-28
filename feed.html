@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EOS 6D — Live Feed</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      padding: 1.5rem 1rem;
+      text-align: center;
+      width: 100%;
+      background: #111;
+      border-bottom: 1px solid #222;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 600; color: #fff; }
+    header p { color: #666; font-size: 0.8rem; margin-top: 0.3rem; }
+
+    #container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 1.5rem;
+      gap: 1rem;
+    }
+
+    #feed-wrapper {
+      position: relative;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid #222;
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16/9;
+    }
+    #feed-wrapper.live { border-color: #e63946; }
+
+    #feed {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    #overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(0,0,0,0.6);
+      padding: 0.3rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: #aaa;
+      pointer-events: none;
+    }
+    #overlay .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #555;
+    }
+    #overlay .dot.live { background: #e63946; animation: pulse 1.2s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #status {
+      padding: 0.6rem 1.2rem;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #999;
+      max-width: 960px;
+      width: 100%;
+      text-align: center;
+    }
+    #status.error { border-color: #e63946; color: #e63946; }
+    #status.ok { border-color: #4ade80; color: #4ade80; }
+    #status.warn { border-color: #facc15; color: #facc15; }
+
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn {
+      padding: 0.5rem 1.2rem;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all .15s;
+    }
+    .btn:hover { background: #2a2a2a; border-color: #e63946; }
+    .btn.active { background: #e63946; border-color: #e63946; color: #fff; }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    #devices {
+      max-width: 960px;
+      width: 100%;
+    }
+    #devices label { font-size: 0.8rem; color: #666; display: block; margin-bottom: 0.3rem; }
+    #devices select {
+      width: 100%;
+      padding: 0.5rem;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      color: #e0e0e0;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    #debug {
+      max-width: 960px;
+      width: 100%;
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 0.75rem;
+      color: #666;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    #debug .log-error { color: #e63946; }
+    #debug .log-warn { color: #facc15; }
+    #debug .log-ok { color: #4ade80; }
+    #debug .log-info { color: #60a5fa; }
+
+    #screenshot-link { display: none; }
+
+    footer {
+      padding: 1rem;
+      color: #333;
+      font-size: 0.7rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>EOS 6D — Live Feed</h1>
+  <p>Vista previa a través de EOS Webcam Utility Pro</p>
+</header>
+
+<div id="container">
+  <div id="devices">
+    <label>Cámara detectada:</label>
+    <select id="camera-select" onchange="onDeviceChange()"><option value="">— Seleccionar cámara —</option></select>
+  </div>
+
+  <div id="feed-wrapper">
+    <video id="feed" autoplay playsinline muted></video>
+    <div id="overlay">
+      <span class="dot" id="live-dot"></span>
+      <span id="live-label">Sin señal</span>
+    </div>
+  </div>
+
+  <div id="status">Verificando permisos y dispositivos…</div>
+
+  <div class="controls">
+    <button class="btn" id="btn-start" onclick="startFeed()">▶ Iniciar feed</button>
+    <button class="btn" id="btn-stop" onclick="stopFeed()" disabled>⏹ Detener</button>
+    <button class="btn" id="btn-snap" onclick="screenshot()" disabled>📸 Captura</button>
+    <button class="btn" id="btn-fullscreen" onclick="toggleFullscreen()" disabled>⛶ Pantalla completa</button>
+    <button class="btn" id="btn-refresh" onclick="enumerate()">🔄 Refrescar</button>
+  </div>
+
+  <div id="debug"></div>
+  <a id="screenshot-link" download="eos6d-capture.png"></a>
+</div>
+
+<footer>EOS Webcam Utility Pro · Chrome / Edge / Opera</footer>
+
+<script>
+  const video = document.getElementById('feed');
+  const select = document.getElementById('camera-select');
+  const statusEl = document.getElementById('status');
+  const dot = document.getElementById('live-dot');
+  const label = document.getElementById('live-label');
+  const wrapper = document.getElementById('feed-wrapper');
+  const debug = document.getElementById('debug');
+  let stream = null;
+
+  function log(msg, type = 'info') {
+    const t = document.createElement('div');
+    const ts = new Date().toLocaleTimeString();
+    t.className = `log-${type}`;
+    t.textContent = `[${ts}] ${msg}`;
+    debug.appendChild(t);
+    debug.scrollTop = debug.scrollHeight;
+    console.log(`[EOS ${type}] ${msg}`);
+  }
+
+  function setStatus(msg, type) {
+    statusEl.textContent = msg;
+    statusEl.className = type || '';
+  }
+
+  function isSecureContext() {
+    return window.isSecureContext;
+  }
+
+  function isLocalFile() {
+    return location.protocol === 'file:';
+  }
+
+  async function enumerate() {
+    debug.innerHTML = '';
+    log('Iniciando diagnóstico…');
+
+    // Check secure context
+    if (!isSecureContext()) {
+      log('NO es contexto seguro (isSecureContext = false)', 'error');
+      log('Los archivos file:// NO permiten getUserMedia en la mayoría de navegadores', 'warn');
+      log('Solución: ejecuta un servidor local (ver consola)', 'warn');
+      setStatus('Error: file:// no soporta cámara. Abre la consola (F12) para instrucciones.', 'error');
+
+      // Try to start local server
+      tryStartLocalServer();
+      return;
+    }
+    log('Contexto seguro: OK', 'ok');
+
+    // Request camera permission
+    log('Solicitando permiso de cámara…');
+    let permStream;
+    try {
+      permStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      log('Permiso concedido. Cámaras con etiquetas disponibles.', 'ok');
+    } catch (e) {
+      log(`Permiso denegado o error: ${e.name} — ${e.message}`, 'error');
+      if (e.name === 'NotAllowedError') {
+        log('Permiso de cámara denegado. Haz clic en el icono de candado en la barra de direcciones.', 'warn');
+        setStatus('Permiso de cámara denegado. Permite el acceso en la barra de direcciones.', 'error');
+      } else if (e.name === 'NotFoundError') {
+        log('No se encontró ningún dispositivo de video.', 'error');
+        setStatus('No se encontró ninguna cámara. Verifica que EOS Webcam Utility Pro esté corriendo.', 'error');
+      } else {
+        setStatus(`Error: ${e.name} — ${e.message}`, 'error');
+      }
+      return;
+    }
+
+    // Stop temporary stream
+    permStream.getTracks().forEach(t => t.stop());
+
+    // Enumerate devices
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cams = devices.filter(d => d.kind === 'videoinput');
+    log(`Dispositivos de video encontrados: ${cams.length}`);
+
+    select.innerHTML = '';
+    if (cams.length === 0) {
+      select.innerHTML = '<option value="">No se detectaron cámaras</option>';
+      setStatus('No se detectó ninguna cámara.', 'error');
+      return;
+    }
+
+    let canonIndex = -1;
+    cams.forEach((c, i) => {
+      const name = c.label || `Cámara ${i + 1}`;
+      log(`  [${i}] ${name} (id: ${c.deviceId.substring(0, 12)}…)`);
+      if (name.toLowerCase().includes('eos') || name.toLowerCase().includes('canon') || name.toLowerCase().includes('webcam')) {
+        canonIndex = i;
+      }
+      const opt = document.createElement('option');
+      opt.value = c.deviceId;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
+
+    if (canonIndex >= 0) {
+      select.selectedIndex = canonIndex;
+      log(`Cámara Canon detectada automáticamente: ${cams[canonIndex].label}`, 'ok');
+    }
+
+    setStatus(`${cams.length} cámara(s) detectada(s). Selecciona la EOS 6D y haz clic en "Iniciar feed".`, '');
+  }
+
+  function onDeviceChange() {
+    const name = select.options[select.selectedIndex]?.text || '';
+    log(`Cámara seleccionada: ${name}`);
+  }
+
+  async function startFeed() {
+    stopFeed();
+    const deviceId = select.value;
+    if (!deviceId) { setStatus('Selecciona una cámara primero.', 'error'); return; }
+
+    log(`Intentando conectar: ${select.options[select.selectedIndex].text}…`);
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: { exact: deviceId },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 60 }
+        },
+        audio: false
+      });
+
+      const track = stream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      log(`Stream activo — ${settings.width}x${settings.height} @ ${settings.frameRate}fps`, 'ok');
+
+      video.srcObject = stream;
+      await video.play();
+
+      setStatus(`Feed activo — ${settings.width}x${settings.height} @ ${Math.round(settings.frameRate)}fps`, 'ok');
+      dot.classList.add('live');
+      label.textContent = 'EN VIVO';
+      wrapper.classList.add('live');
+      document.getElementById('btn-start').classList.add('active');
+      document.getElementById('btn-stop').disabled = false;
+      document.getElementById('btn-snap').disabled = false;
+      document.getElementById('btn-fullscreen').disabled = false;
+
+      track.onended = () => {
+        log('Track de video terminado', 'warn');
+        setStatus('Conexión de cámara perdida', 'error');
+      };
+    } catch (err) {
+      log(`Error al iniciar feed: ${err.name} — ${err.message}`, 'error');
+      setStatus(`Error: ${err.message}`, 'error');
+    }
+  }
+
+  function stopFeed() {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    video.srcObject = null;
+    dot.classList.remove('live');
+    label.textContent = 'Sin señal';
+    wrapper.classList.remove('live');
+    document.getElementById('btn-start').classList.remove('active');
+    document.getElementById('btn-stop').disabled = true;
+    document.getElementById('btn-snap').disabled = true;
+    document.getElementById('btn-fullscreen').disabled = true;
+    setStatus('Feed detenido', '');
+    log('Feed detenido');
+  }
+
+  function screenshot() {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const link = document.getElementById('screenshot-link');
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    log('Captura guardada', 'ok');
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      wrapper.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  function tryStartLocalServer() {
+    log('---', 'info');
+    log('Para solucionar esto, ejecuta en terminal:', 'warn');
+    log('cd "C:\\Users\\Marco\\Documents\\eos"', 'warn');
+    log('python -m http.server 8080', 'warn');
+    log('Luego abre: http://localhost:8080/feed.html', 'warn');
+    log('---', 'info');
+    log('Si no tienes Python, prueba con Node.js:', 'warn');
+    log('npx serve .', 'warn');
+  }
+
+  enumerate();
+</script>
+</body>
+</html>
