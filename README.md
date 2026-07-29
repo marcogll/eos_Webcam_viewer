@@ -215,6 +215,3 @@ eos/
 ## Licencia
 
 MIT
-
-wXWhu6YAAU7j6ZO4Xo0pQK94mPgd87lygz8UNXoI=
-
