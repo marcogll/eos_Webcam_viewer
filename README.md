@@ -1,8 +1,39 @@
-# EOS 6D — Live Feed
+<p align="center">
+  <a href="https://soul23.mx">
+    <picture>
+      <source
+        media="(prefers-color-scheme: dark)"
+        srcset="https://raw.githubusercontent.com/marcogll/mg_data_storage/refs/heads/main/soul23/logo/soul23_logo_wh.png">
+      <source
+        media="(prefers-color-scheme: light)"
+        srcset="https://raw.githubusercontent.com/marcogll/mg_data_storage/refs/heads/main/soul23/logo/soul23_logo_blk.png">
+      <img
+        src="https://raw.githubusercontent.com/marcogll/mg_data_storage/refs/heads/main/soul23/logo/soul23_logo_blk.png"
+        width="110"
+        alt="Soul:23">
+    </picture>
+  </a>
+</p>
 
-Transmisión en vivo de una Canon EOS 6D (o cualquier cámara compatible) directo al navegador, con capacidad de proyectar a dispositivos Chromecast / DLNA y grabar con OBS u otras herramientas.
+<h1 align="center">EOS 6D — Live Feed</h1>
+
+<p align="center">
+  Transmisión en vivo de Canon EOS 6D al navegador con cast a Chromecast/DLNA y grabación por OBS.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/HTML-3a3a3a?style=flat-square&logo=html5&logoColor=white">
+  <img src="https://img.shields.io/badge/JavaScript-3a3a3a?style=flat-square&logo=javascript&logoColor=white">
+  <img src="https://img.shields.io/badge/PowerShell-3a3a3a?style=flat-square&logo=powershell&logoColor=white">
+</p>
 
 ---
+
+## Description
+
+Transmisión en vivo de una Canon EOS 6D (o cualquier cámara compatible con EOS Webcam Utility) directo al navegador, con capacidad de proyectar a dispositivos Chromecast / DLNA y grabar con OBS u otras herramientas. Usa `getUserMedia` para capturar el feed de la cámara expuesta como webcam por el driver de Canon, y lo muestra con controles de captura, pantalla completa y refresco.
+
+El servidor local puede levantarse con PowerShell (`.bat`/`.ps1`), Python (`python -m http.server`) o Node (`npx serve`). Pensado para Windows; en macOS/Linux se recomienda Camo u OBS Virtual Camera.
 
 ## Requisitos
 
